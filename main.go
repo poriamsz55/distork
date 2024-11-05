@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
-	"time"
 
 	"github.com/labstack/echo/v4"
+	middle "github.com/poriamsz55/distork/api/middlewares"
+	"github.com/poriamsz55/distork/api/models/user"
+	router "github.com/poriamsz55/distork/api/routers"
+	config "github.com/poriamsz55/distork/configs"
 	"github.com/poriamsz55/distork/database"
 )
 
@@ -56,11 +58,7 @@ func main() {
 	// middle.JWTMiddleWares(userGroup)
 	router.UserRoutes(userGroup)
 
-	// Start server
-	server := &http.Server{
-		Addr:         ":8080",
-		ReadTimeout:  2 * time.Hour, // Adjust as necessary
-		WriteTimeout: 2 * time.Hour, // Adjust as necessary
-	}
-	e.Logger.Fatal(e.StartServer(server))
+	e.Logger.Fatal(e.StartTLS(":8080",
+		"localhost+2.pem",
+		"localhost+2-key.pem"))
 }

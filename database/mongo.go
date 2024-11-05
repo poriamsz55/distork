@@ -2,9 +2,9 @@ package database
 
 import (
 	"context"
-	config "drive/configs"
 	"time"
 
+	config "github.com/poriamsz55/distork/configs"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
