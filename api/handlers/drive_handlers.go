@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/gddo/database"
 	"github.com/labstack/echo/v4"
 	"github.com/poriamsz55/distork/api/models/file"
 	"github.com/poriamsz55/distork/api/models/user"

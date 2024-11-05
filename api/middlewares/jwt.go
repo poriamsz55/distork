@@ -35,9 +35,7 @@ func OptionalJWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 					if usr.AddUserToDB() != nil {
 						return err
 					}
-
 				}
-
 			} else {
 				if usr.AddUserToDB() != nil {
 					return err

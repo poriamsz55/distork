@@ -70,4 +70,14 @@ func setupApp(e *echo.Echo) {
 	// middle.JWTMiddleWares(userGroup)
 	router.UserRoutes(userGroup)
 
+	// Room
+	//create new manager for websocket traffic
+	websokcetGroup := eGroup.Group("/ws")
+	middle.JWTMiddleWares(websokcetGroup)
+	router.WSRoutes(websokcetGroup)
+
+	// room.AllRooms.Init()
+
+	// http.HandleFunc("/create-room", room.CreateRoomRequestHandler)
+	// http.HandleFunc("/join-room", room.JoinRoomRequestHandler)
 }

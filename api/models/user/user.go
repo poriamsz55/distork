@@ -16,11 +16,30 @@ import (
 type User struct {
 	ID        string `json:"id" bson:"_id,omitempty"`
 	Username  string `json:"username" bson:"username" validate:"required,min=3,max=30"`
+	Avatar    []byte `json:"avatar" bson:"avatar,omitempty"`
 	Email     string `json:"email" bson:"email" validate:"required,email"`
 	Password  string `json:"password" bson:"password" validate:"required,min=8"`
 	Role      string `json:"role" bson:"role"`
 	DriveSize int64  `json:"drive_size" bson:"drive_size"`
 	DriveUsed int64  `json:"drive_used" bson:"drive_used"`
+}
+
+type UpdateProfileRequest struct {
+	Username string `json:"username" validate:"omitempty,min=3,max=30"`
+	Password string `json:"password" bson:"password" validate:"required,min=8"`
+	Avatar   []byte `json:"avatar" bson:"avatar"`
+}
+
+func UpdateUser(userEmail string, updateFields bson.M) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"email": userEmail}
+	update := bson.M{"$set": updateFields}
+
+	collection := database.Collection(config.GetConfigDB().UserColl)
+	_, err := collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func NewUser(username, email, password, role string) *User {

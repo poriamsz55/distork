@@ -156,6 +156,43 @@ func GetUserProfile(c echo.Context) error {
 	return c.JSON(http.StatusOK, usr)
 }
 
+// Access protected routes and extract user info from JWT
+func UpdateProfile(c echo.Context) error {
+	usr := c.Get("user").(*user.User)
+
+	// Bind and validate the incoming data
+	updateData := new(user.UpdateProfileRequest)
+	if err := c.Bind(updateData); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	// Validate the input data
+	if err := c.Validate(updateData); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Prepare the fields to be updated
+	updateFields := bson.M{}
+	if updateData.Username != "" {
+		updateFields["username"] = updateData.Username
+	}
+	if updateData.Password != "" {
+		updateFields["password"] = updateData.Password
+	}
+	if string(updateData.Avatar) != "" {
+		updateFields["avatar"] = updateData.Avatar
+	}
+
+	// Call the repository to update the user in MongoDB
+	if err := user.UpdateUser(usr.Email, updateFields); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not update profile")
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Profile updated successfully",
+	})
+}
+
 func NewGuest(c echo.Context) error {
 
 	authHeader := c.Request().Header.Get("Authorization")
