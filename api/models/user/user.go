@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-playground/validator"
 	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/websocket"
 	config "github.com/poriamsz55/distork/configs"
 	"github.com/poriamsz55/distork/database"
 	"github.com/poriamsz55/distork/utils"
@@ -14,14 +15,15 @@ import (
 )
 
 type User struct {
-	ID        string `json:"id" bson:"_id,omitempty"`
-	Username  string `json:"username" bson:"username" validate:"required,min=3,max=30"`
-	Avatar    []byte `json:"avatar" bson:"avatar,omitempty"`
-	Email     string `json:"email" bson:"email" validate:"required,email"`
-	Password  string `json:"password" bson:"password" validate:"required,min=8"`
-	Role      string `json:"role" bson:"role"`
-	DriveSize int64  `json:"drive_size" bson:"drive_size"`
-	DriveUsed int64  `json:"drive_used" bson:"drive_used"`
+	ID        string          `json:"id" bson:"_id,omitempty"`
+	Username  string          `json:"username" bson:"username" validate:"required,min=3,max=30"`
+	Avatar    []byte          `json:"avatar" bson:"avatar,omitempty"`
+	Email     string          `json:"email" bson:"email" validate:"required,email"`
+	Password  string          `json:"password" bson:"password" validate:"required,min=8"`
+	Role      string          `json:"role" bson:"role"`
+	DriveSize int64           `json:"drive_size" bson:"drive_size"`
+	DriveUsed int64           `json:"drive_used" bson:"drive_used"`
+	Conn      *websocket.Conn `json:"-" bson:"-"`
 }
 
 type UpdateProfileRequest struct {

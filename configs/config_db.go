@@ -3,6 +3,7 @@ package config
 type ConfigDB struct {
 	DatabaseName string
 	UserColl     string
+	RoomColl     string
 }
 
 var (
@@ -19,6 +20,7 @@ func GetConfigDB() *ConfigDB {
 	configDB = &ConfigDB{
 		DatabaseName: "drive",
 		UserColl:     "users",
+		RoomColl:     "rooms",
 	}
 	return configDB
 }
