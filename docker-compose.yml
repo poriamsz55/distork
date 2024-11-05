@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .  # This points to the directory with the Dockerfile
+      dockerfile: Dockerfile
+    container_name: distork_go
+    ports:
+      - "8080:8080"
+    # volumes:
+    #   - ./:/app  # Bind mount to /app to align with Dockerfile
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo
+    container_name: distork_mongo
+    ports:
+      - "27017:27017"
