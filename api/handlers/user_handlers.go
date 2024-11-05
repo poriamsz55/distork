@@ -31,12 +31,7 @@ func SignUp(c echo.Context) error {
 		})
 	}
 
-	newUser := &user.User{
-		Username: username,
-		Password: password,
-		Email:    email,
-		Role:     "USER",
-	}
+	newUser := user.NewUser(username, email, password, config.RoleUser)
 
 	// Validate user input
 	if err := newUser.Validate(); err != nil {
@@ -69,6 +64,7 @@ func SignUp(c echo.Context) error {
 				{Key: "username", Value: newUser.Username},
 				{Key: "password", Value: newUser.Password},
 				{Key: "role", Value: newUser.Role},
+				{Key: "drive_size", Value: config.RoleDriveSize[config.RoleUser]},
 			}},
 		}
 
@@ -169,7 +165,11 @@ func NewGuest(c echo.Context) error {
 		})
 	}
 
-	usr := user.NewUser(c.RealIP(), fmt.Sprintf("%s@mail.com", c.RealIP()), "password", "GUEST")
+	usr := user.NewUser(c.RealIP(),
+		fmt.Sprintf("%s@mail.com", c.RealIP()),
+		"password",
+		config.RoleGuest)
+
 	err := usr.AddUserToDB()
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{

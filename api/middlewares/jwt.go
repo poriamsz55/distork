@@ -11,7 +11,6 @@ import (
 )
 
 func JWTMiddleWares(e *echo.Group) {
-
 	// JWT
 	e.Use(OptionalJWTMiddleware)
 }
@@ -20,7 +19,11 @@ func OptionalJWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
 
-		usr := user.NewUser(c.RealIP(), fmt.Sprintf("%s@mail.com", c.RealIP()), "password", "GUEST")
+		usr := user.NewUser(c.RealIP(),
+			fmt.Sprintf("%s@mail.com", c.RealIP()),
+			"password",
+			config.RoleGuest)
+
 		var err error
 		if authHeader != "" {
 			// Try to verify JWT

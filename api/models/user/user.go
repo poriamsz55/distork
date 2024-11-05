@@ -14,20 +14,24 @@ import (
 )
 
 type User struct {
-	ID       string `json:"id" bson:"_id,omitempty"`
-	Username string `json:"username" bson:"username" validate:"required,min=3,max=30"`
-	Email    string `json:"email" bson:"email" validate:"required,email"`
-	Password string `json:"password" bson:"password" validate:"required,min=8"`
-	Role     string `json:"role" bson:"role"`
+	ID        string `json:"id" bson:"_id,omitempty"`
+	Username  string `json:"username" bson:"username" validate:"required,min=3,max=30"`
+	Email     string `json:"email" bson:"email" validate:"required,email"`
+	Password  string `json:"password" bson:"password" validate:"required,min=8"`
+	Role      string `json:"role" bson:"role"`
+	DriveSize int64  `json:"drive_size" bson:"drive_size"`
+	DriveUsed int64  `json:"drive_used" bson:"drive_used"`
 }
 
 func NewUser(username, email, password, role string) *User {
 	pass, _ := utils.HashPassword(password)
 	usr := &User{
-		Username: username,
-		Email:    email,
-		Password: pass,
-		Role:     role,
+		Username:  username,
+		Email:     email,
+		Password:  pass,
+		Role:      role,
+		DriveSize: config.RoleDriveSize[role],
+		DriveUsed: 0,
 	}
 
 	return usr

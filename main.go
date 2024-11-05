@@ -24,18 +24,30 @@ func main() {
 		return
 	}
 
-	usr := user.NewUser("admin", "admin@mail.com", "admin", "ADMIN")
+	usr := user.NewUser("admin",
+		"admin@mail.com",
+		"admin",
+		config.RoleAdmin)
+
 	err = usr.AddUserToDB()
 	if err != nil {
 		return
 	}
 
 	e := echo.New()
+
+	setupApp(e)
+
+	e.Logger.Fatal(e.StartTLS(":8080",
+		"localhost+2.pem",
+		"localhost+2-key.pem"))
+}
+
+func setupApp(e *echo.Echo) {
 	// Use ExtractIPFromXFFHeader to properly handle IPs behind a proxy
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	// main routes
-
 	// api to handle server side (nginx)
 	eGroup := e.Group("/api")
 	middle.MiddleWares(eGroup)
@@ -58,7 +70,4 @@ func main() {
 	// middle.JWTMiddleWares(userGroup)
 	router.UserRoutes(userGroup)
 
-	e.Logger.Fatal(e.StartTLS(":8080",
-		"localhost+2.pem",
-		"localhost+2-key.pem"))
 }

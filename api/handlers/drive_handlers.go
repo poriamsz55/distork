@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,11 +12,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/gddo/database"
 	"github.com/labstack/echo/v4"
 	"github.com/poriamsz55/distork/api/models/file"
 	"github.com/poriamsz55/distork/api/models/user"
 	config "github.com/poriamsz55/distork/configs"
+	"github.com/poriamsz55/distork/database"
 	"github.com/poriamsz55/distork/utils"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Handler to upload files using streaming
@@ -33,6 +37,16 @@ func UploadFile(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Check the file size
+	fileSize := file.Size
+	newDriveUsed := usr.DriveUsed + fileSize
+
+	// Check if new usage exceeds allowed drive size
+	if newDriveUsed > usr.DriveSize {
+		return c.String(http.StatusForbidden, "Insufficient drive space.")
+	}
+
 	src, err := file.Open()
 	if err != nil {
 		return err
@@ -69,6 +83,19 @@ func UploadFile(c echo.Context) error {
 		return err
 	}
 
+	collection := database.Collection(config.GetConfigDB().UserColl)
+
+	// Update DriveUsed for the user
+	usr.DriveUsed = newDriveUsed
+	_, err = collection.UpdateOne(
+		context.TODO(),
+		bson.M{"email": usr.Email},
+		bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
+	)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to update drive usage: %s", err))
+	}
+
 	return c.String(http.StatusOK, fmt.Sprintf("File %s uploaded successfully.", file.Filename))
 }
 
@@ -87,6 +114,15 @@ func UploadFileChunk(c echo.Context) error {
 	chunkFile, err := c.FormFile("file")
 	if err != nil {
 		return err
+	}
+
+	// Check the size of the chunk
+	chunkSize := chunkFile.Size
+	newDriveUsed := usr.DriveUsed + chunkSize
+
+	// Check if new usage exceeds allowed drive size
+	if newDriveUsed > usr.DriveSize {
+		return c.String(http.StatusForbidden, "Insufficient drive space.")
 	}
 
 	currentPath := c.QueryParam("path")
@@ -166,6 +202,19 @@ func UploadFileChunk(c echo.Context) error {
 			os.Remove(chunkPath) // Remove the chunk files after combining
 		}
 
+		collection := database.Collection(config.GetConfigDB().UserColl)
+
+		// Update DriveUsed for the user after final file creation
+		usr.DriveUsed = newDriveUsed
+		_, err = collection.UpdateOne(
+			context.TODO(),
+			bson.M{"email": usr.Email},
+			bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
+		)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to update drive usage: %s", err))
+		}
+
 		// Optionally, you can inform the user about the final file name
 		return c.JSON(http.StatusOK, map[string]string{
 			"message":  fmt.Sprintf("File uploaded successfully as %s.", finalFileName),
@@ -188,7 +237,7 @@ func ListFilesAndFolders(c echo.Context) error {
 
 	uploadPath := ""
 	uploadBase := ""
-	if usr.Role == "ADMIN" {
+	if usr.Role == config.RoleAdmin {
 		uploadPath = filepath.Join(config.GetConfigDrive().UploadDir, currentPath)
 		uploadBase = config.GetConfigDrive().UploadDir
 	} else {
@@ -312,6 +361,30 @@ func DeleteFile(c echo.Context) error {
 	// Ensure that the requested file path is inside the user's directory
 	if !strings.HasPrefix(safePath, userDir) {
 		return c.String(http.StatusForbidden, "Invalid file path")
+	}
+
+	// Get the file info to determine its size
+	fileInfo, err := os.Stat(safePath)
+	if os.IsNotExist(err) {
+		return c.String(http.StatusNotFound, fmt.Sprintf("File %s not found.", filename))
+	} else if err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error retrieving file info: %s", err))
+	}
+
+	// Update DriveUsed for the user
+	fileSize := fileInfo.Size() // Size of the deleted file
+	usr.DriveUsed -= fileSize   // Decrease the used space
+
+	collection := database.Collection(config.GetConfigDB().UserColl)
+
+	// Update user's DriveUsed in the database
+	_, err = collection.UpdateOne(
+		context.TODO(),
+		bson.M{"email": usr.Email},
+		bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
+	)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to update drive usage: %s", err))
 	}
 
 	// Remove the file
