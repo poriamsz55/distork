@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat & Voice Room</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div id="login-container">
+        <h2>Join Chat Room</h2>
+        <input type="text" id="username-input" placeholder="Username" required>
+        <input type="text" id="room-input" placeholder="Room Name" required>
+        <button onclick="joinRoom()">Join Room</button>
+    </div>
+
+    <div id="chat-container">
+        <div class="room-layout">
+            <div id="users-list">
+                <h3>Users in Room</h3>
+                <div id="users-content"></div>
+            </div>
+            <div class="main-content">
+                <div id="messages"></div>
+                <div id="input-container">
+                    <input type="text" id="message-input" placeholder="Type your message...">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="voice-container">
+        <div id="voice-controls">
+            <button id="end-call-btn" onclick="endCall()" style="background-color: #ff4444;">Leave Room</button>
+            <div class="audio-controls">
+                <div class="audio-indicator"></div>
+                <span>Voice Connected</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/webrtc.js"></script>
+    <script src="/js/websocket.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>
