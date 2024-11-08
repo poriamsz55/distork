@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat & Video Call App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 40px);
+            gap: 20px;
+        }
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .video-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #messages {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            border-radius: 5px;
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .video-container {
+            position: relative;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #localVideo {
+            background: #2f2f2f;
+        }
+        #remoteVideo {
+            background: #2f2f2f;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        #users-list {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-section">
+            <div id="users-list"></div>
+            <div id="chat-container">
+                <div id="messages"></div>
+                <div id="input-container">
+                    <input type="text" id="message-input" placeholder="Type your message...">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+        <div class="video-section">
+            <div class="video-container">
+                <video id="localVideo" autoplay muted playsinline></video>
+            </div>
+            <div class="video-container">
+                <video id="remoteVideo" autoplay playsinline></video>
+            </div>
+            <div class="control-buttons">
+                <button id="startCall" onclick="startCall()">Start Call</button>
+                <button id="endCall" onclick="endCall()" class="danger hidden">End Call</button>
+                <button id="toggleAudio" onclick="toggleAudio()">Mute</button>
+                <button id="toggleVideo" onclick="toggleVideo()">Hide Video</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let username = prompt("Enter your username:") || "Anonymous" + Math.floor(Math.random() * 1000);
+        const ws = new WebSocket(`ws://${window.location.host}/ws?username=${username}`);
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('message-input');
+        const usersList = document.getElementById('users-list');
+        
+        // WebRTC variables
+        let localStream;
+        let peerConnection;
+        let selectedUser;
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+            ]
+        };
+
+        // Initialize media devices
+        async function initializeMedia() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                document.getElementById('localVideo').srcObject = localStream;
+            } catch (error) {
+                console.error('Error accessing media devices:', error);
+            }
+        }
+
+        initializeMedia();
+
+        // WebSocket message handling
+        ws.onmessage = async function(event) {
+            const message = JSON.parse(event.data);
+            
+            switch(message.type) {
+                case 'users':
+                    updateUsersList(message.content.split(','));
+                    break;
+                case 'message':
+                    displayMessage(message);
+                    break;
+                case 'signal':
+                    handleSignalingMessage(message);
+                    break;
+            }
+        };
+
+        function updateUsersList(users) {
+            usersList.innerHTML = '<h3>Online Users:</h3>';
+            users.forEach(user => {
+                if (user !== username) {
+                    const userElement = document.createElement('div');
+                    userElement.innerHTML = `
+                        <button onclick="selectUser('${user}')">${user}</button>
+                    `;
+                    usersList.appendChild(userElement);
+                }
+            });
+        }
+
+        function selectUser(user) {
+            selectedUser = user;
+            document.getElementById('startCall').disabled = false;
+        }
+
+        async function startCall() {
+            if (!selectedUser) return;
+            
+            peerConnection = new RTCPeerConnection(configuration);
+            
+            // Add local stream
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // Handle ICE candidates
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    sendSignalingMessage({
+                        type: 'signal',
+                        from: username,
+                        to: selectedUser,
+                        signal: JSON.stringify({ type: 'candidate', candidate: event.candidate })
+                    });
+                }
+            };
+
+            // Handle remote stream
+            peerConnection.ontrack = event => {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+
+            // Create and send offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            sendSignalingMessage({
+                type: 'signal',
+                from: username,
+                to: selectedUser,
+                signal: JSON.stringify({ type: 'offer', sdp: offer })
+            });
+
+            document.getElementById('startCall').classList.add('hidden');
+            document.getElementById('endCall').classList.remove('hidden');
+        }
+
+        async function handleSignalingMessage(message) {
+            const signal = JSON.parse(message.signal);
+
+            if (!peerConnection) {
+                peerConnection = new RTCPeerConnection(configuration);
+                
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        sendSignalingMessage({
+                            type: 'signal',
+                            from: username,
+                            to: message.from,
+                            signal: JSON.stringify({ type: 'candidate', candidate: event.candidate })
+                        });
+                    }
+                };
+
+                peerConnection.ontrack = event => {
+                    document.getElementById('remoteVideo').srcObject = event.streams[0];
+                };
+            }
+
+            switch(signal.type) {
+                case 'offer':
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    
+                    sendSignalingMessage({
+                        type: 'signal',
+                        from: username,
+                        to: message.from,
+                        signal: JSON.stringify({ type: 'answer', sdp: answer })
+                    });
+
+                    document.getElementById('startCall').classList.add('hidden');
+                    document.getElementById('endCall').classList.remove('hidden');
+                    break;
+                    
+                case 'answer':
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                    break;
+                    
+                case 'candidate':
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                    break;
+            }
+        }
+
+        function endCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            document.getElementById('remoteVideo').srcObject = null;
+            document.getElementById('startCall').classList.remove('hidden');
+            document.getElementById('endCall').classList.add('hidden');
+        }
+
+        function toggleAudio() {
+            const audioTrack = localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            document.getElementById('toggleAudio').textContent = 
+                audioTrack.enabled ? 'Mute' : 'Unmute';
+        }
+
+        function toggleVideo() {
+            const videoTrack = localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            document.getElementById('toggleVideo').textContent = 
+                videoTrack.enabled ? 'Hide Video' : 'Show Video';
+        }
+
+        function sendMessage() {
+            const content = messageInput.value.trim();
+            if (content) {
+                const message = {
+                    type: 'message',
+                    from: username,
+                    content: content
+                };
+                ws.send(JSON.stringify(message));
+                messageInput.value = '';
+            }
+        }
+
+        function sendSignalingMessage(message) {
+            ws.send(JSON.stringify(message));
+        }
+
+        function displayMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.textContent = `${message.from}: ${message.content}`;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        ws.onclose = function() {
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.textContent = 'Connection closed. Please refresh the page.';
+            messages.appendChild(message);
+        };
+    </script>
+</body>
+</html>
