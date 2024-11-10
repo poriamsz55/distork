@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-playground/validator"
 	"github.com/golang-jwt/jwt"
-	"github.com/gorilla/websocket"
 	config "github.com/poriamsz55/distork/configs"
 	"github.com/poriamsz55/distork/database"
 	"github.com/poriamsz55/distork/utils"
@@ -15,28 +14,19 @@ import (
 )
 
 type User struct {
-	ID        string          `json:"id" bson:"_id,omitempty"`
-	Username  string          `json:"username" bson:"username" validate:"required,min=3,max=30"`
-	Avatar    []byte          `json:"avatar" bson:"avatar,omitempty"`
-	Email     string          `json:"email" bson:"email" validate:"required,email"`
-	Password  string          `json:"password" bson:"password" validate:"required,min=8"`
-	Role      string          `json:"role" bson:"role"`
-	DriveSize int64           `json:"drive_size" bson:"drive_size"`
-	DriveUsed int64           `json:"drive_used" bson:"drive_used"`
-	Conn      *websocket.Conn `json:"-" bson:"-"`
+	Username  string `json:"username" bson:"username" validate:"required,min=3,max=30"`
+	Email     string `json:"email,omitempty" bson:"email" validate:"required,email"`
+	Password  string `json:"password,omitempty" bson:"password" validate:"required,min=8"`
+	Role      string `json:"role,omitempty" bson:"role"`
+	DriveSize int64  `json:"drive_size,omitempty" bson:"drive_size"`
+	DriveUsed int64  `json:"drive_used,omitempty" bson:"drive_used"`
 }
 
-type UpdateProfileRequest struct {
-	Username string `json:"username" validate:"omitempty,min=3,max=30"`
-	Password string `json:"password" bson:"password" validate:"required,min=8"`
-	Avatar   []byte `json:"avatar" bson:"avatar"`
-}
-
-func UpdateUser(userEmail string, updateFields bson.M) error {
+func UpdateUser(username string, updateFields bson.M) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"email": userEmail}
+	filter := bson.M{"username": username}
 	update := bson.M{"$set": updateFields}
 
 	collection := database.Collection(config.GetConfigDB().UserColl)
@@ -61,8 +51,8 @@ func NewUser(username, email, password, role string) *User {
 func (u *User) GenerateJWT() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
-			"email": u.Email,
-			"exp":   time.Now().Add(time.Hour * 876000).Unix(), // 100 years
+			"username": u.Username,
+			"exp":      time.Now().Add(time.Hour * 876000).Unix(), // 100 years
 		})
 
 	tokenString, err := token.SignedString(config.GetSharedConfig().JwtSecret)
@@ -86,22 +76,22 @@ func GetUserByToken(tokenString string) (*User, error) {
 		return []byte(config.GetSharedConfig().JwtSecret), nil
 	})
 
-	// Extract user email from claims
-	email := (claims)["email"].(string)
+	// Extract user username from claims
+	username := (claims)["username"].(string)
 	exp, _ := (claims)["exp"].(float64)
 	if int64(exp) < time.Now().Unix() {
 		return nil, fmt.Errorf("Token Expired")
 	}
 
-	usr, err := GetUserByEmail(email)
+	usr, err := GetUserByUsername(username)
 
 	return &usr, err
 }
 
-func GetUserByEmail(email string) (User, error) {
+func GetUserByUsername(username string) (User, error) {
 
 	usr := User{}
-	err := database.Collection(config.GetConfigDB().UserColl).FindOne(context.TODO(), bson.M{"email": email}).Decode(&usr)
+	err := database.Collection(config.GetConfigDB().UserColl).FindOne(context.Background(), bson.M{"username": username}).Decode(&usr)
 	if err != nil {
 		return usr, err
 	}
@@ -114,13 +104,13 @@ func (u *User) AddUserToDB() error {
 	collection := database.Collection(config.GetConfigDB().UserColl)
 	// check if exists
 	var usr User
-	err := collection.FindOne(context.TODO(), bson.M{"email": u.Email}).Decode(&usr)
+	err := collection.FindOne(context.Background(), bson.M{"username": u.Username}).Decode(&usr)
 	if err == nil {
 		return nil
 	}
 
 	// Add user
-	_, err = collection.InsertOne(context.TODO(), u)
+	_, err = collection.InsertOne(context.Background(), u)
 	if err != nil {
 		return err
 	}

@@ -53,7 +53,7 @@ func UploadFile(c echo.Context) error {
 	defer src.Close()
 
 	// Create user-specific directory if not exists
-	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Email, currentPath)
+	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Username, currentPath)
 	if err := os.MkdirAll(userDir, os.ModePerm); err != nil {
 		return err
 	}
@@ -87,8 +87,8 @@ func UploadFile(c echo.Context) error {
 	// Update DriveUsed for the user
 	usr.DriveUsed = newDriveUsed
 	_, err = collection.UpdateOne(
-		context.TODO(),
-		bson.M{"email": usr.Email},
+		context.Background(),
+		bson.M{"username": usr.Username},
 		bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
 	)
 	if err != nil {
@@ -130,7 +130,7 @@ func UploadFileChunk(c echo.Context) error {
 	}
 
 	// Create user-specific directory if not exists
-	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Email, currentPath)
+	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Username, currentPath)
 	if err := os.MkdirAll(userDir, os.ModePerm); err != nil {
 		return err
 	}
@@ -206,8 +206,8 @@ func UploadFileChunk(c echo.Context) error {
 		// Update DriveUsed for the user after final file creation
 		usr.DriveUsed = newDriveUsed
 		_, err = collection.UpdateOne(
-			context.TODO(),
-			bson.M{"email": usr.Email},
+			context.Background(),
+			bson.M{"username": usr.Username},
 			bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
 		)
 		if err != nil {
@@ -240,8 +240,8 @@ func ListFilesAndFolders(c echo.Context) error {
 		uploadPath = filepath.Join(config.GetConfigDrive().UploadDir, currentPath)
 		uploadBase = config.GetConfigDrive().UploadDir
 	} else {
-		uploadPath = filepath.Join(config.GetConfigDrive().UploadDir, usr.Email, currentPath)
-		uploadBase = filepath.Join(config.GetConfigDrive().UploadDir, usr.Email)
+		uploadPath = filepath.Join(config.GetConfigDrive().UploadDir, usr.Username, currentPath)
+		uploadBase = filepath.Join(config.GetConfigDrive().UploadDir, usr.Username)
 	}
 
 	// Ensure the directory exists
@@ -266,11 +266,12 @@ func ListFilesAndFolders(c echo.Context) error {
 
 		// TODO: use info.Name() for Filename
 		fileList = append(fileList, file.File{
-			Filename: info.Name(),
-			IsDir:    info.IsDir(),
-			Path:     strings.TrimPrefix(filepath.Join(uploadBase, info.Name()), uploadBase), // Trim the base path for relative paths
-			Size:     info.Size(),
-			ModTime:  info.ModTime(),
+			Filename:  info.Name(),
+			UUsername: usr.Username,
+			IsDir:     info.IsDir(),
+			Path:      strings.TrimPrefix(filepath.Join(uploadBase, info.Name()), uploadBase), // Trim the base path for relative paths
+			Size:      info.Size(),
+			ModTime:   info.ModTime(),
 		})
 	}
 
@@ -305,7 +306,7 @@ func DownloadFile(c echo.Context) error {
 	}
 
 	// Construct the full path to the file within the user's directory
-	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Email)
+	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Username)
 	safePath := filepath.Join(userDir, safeFilename)
 
 	// Ensure that the requested file path is inside the user's directory
@@ -354,7 +355,7 @@ func DeleteFile(c echo.Context) error {
 	}
 
 	// Construct the full path to the file within the user's directory
-	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Email)
+	userDir := filepath.Join(config.GetConfigDrive().UploadDir, usr.Username)
 	safePath := filepath.Join(userDir, filename)
 
 	// Ensure that the requested file path is inside the user's directory
@@ -378,8 +379,8 @@ func DeleteFile(c echo.Context) error {
 
 	// Update user's DriveUsed in the database
 	_, err = collection.UpdateOne(
-		context.TODO(),
-		bson.M{"email": usr.Email},
+		context.Background(),
+		bson.M{"username": usr.Username},
 		bson.M{"$set": bson.M{"drive_used": usr.DriveUsed}},
 	)
 	if err != nil {
