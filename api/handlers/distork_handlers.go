@@ -14,8 +14,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  2048, // TODO
-	WriteBufferSize: 2048, // TODO
+	ReadBufferSize:  1024, // TODO
+	WriteBufferSize: 1024, // TODO
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -38,8 +38,8 @@ func HandleConnection(c echo.Context, hub *distork.Hub) error {
 
 	hub.Register <- client
 
-	go write(client)
 	go readPump(client, hub)
+	write(client)
 
 	return c.String(http.StatusOK, "User disconnected")
 }
@@ -51,7 +51,7 @@ func write(client *room.Client) {
 		message, ok := <-client.Send
 		if !ok {
 			client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-			return
+			continue
 		}
 
 		if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
@@ -81,9 +81,8 @@ func readPump(client *room.Client, hub *distork.Hub) {
 		switch msg.Type {
 		case "create_room":
 			hub.Mutex.Lock()
-			defer hub.Mutex.Unlock()
-			rmDB, err := room.GetRoomByName(msg.RoomId) // here is the room name
-			if err != nil {
+			_, err := room.GetRoomByNameDB(msg.RoomId) // here is the room name
+			if err == nil {
 				errorMsg := message.Message{
 					Type:    "error",
 					Content: map[string]interface{}{"error": "room is fucked up"},
@@ -92,9 +91,10 @@ func readPump(client *room.Client, hub *distork.Hub) {
 
 				errMsgByte, _ := json.Marshal(errorMsg)
 				client.Send <- errMsgByte
+				hub.Mutex.Unlock()
 				continue
 			}
-			_, exists := hub.Rooms[rmDB.RoomId]
+			_, exists := hub.Rooms[msg.RoomId]
 			if exists {
 				errorMsg := message.Message{
 					Type:    "error",
@@ -104,6 +104,7 @@ func readPump(client *room.Client, hub *distork.Hub) {
 
 				errMsgByte, _ := json.Marshal(errorMsg)
 				client.Send <- errMsgByte
+				hub.Mutex.Unlock()
 				continue
 			}
 
@@ -118,6 +119,7 @@ func readPump(client *room.Client, hub *distork.Hub) {
 
 				errMsgByte, _ := json.Marshal(errorMsg)
 				client.Send <- errMsgByte
+				hub.Mutex.Unlock()
 				continue
 			}
 
@@ -129,6 +131,7 @@ func readPump(client *room.Client, hub *distork.Hub) {
 			}
 			announcementBytes, _ := json.Marshal(announcement)
 			client.Send <- announcementBytes
+			hub.Mutex.Unlock()
 
 		case "user_joined":
 			hub.Mutex.Lock()
@@ -142,6 +145,7 @@ func readPump(client *room.Client, hub *distork.Hub) {
 
 				errMsgByte, _ := json.Marshal(errorMsg)
 				client.Send <- errMsgByte
+				hub.Mutex.Unlock()
 				continue
 			}
 

@@ -30,9 +30,13 @@ func (h *Hub) Run() {
 		case registration := <-h.Register:
 			h.Mutex.Lock()
 
+			roomsList := []*room.Room{}
+			for _, r := range h.Rooms {
+				roomsList = append(roomsList, r)
+			}
 			roomsAndUsers := message.Message{
 				Type:    "room_list",
-				Content: h.Rooms,
+				Content: roomsList,
 				Target:  registration.Username,
 			}
 

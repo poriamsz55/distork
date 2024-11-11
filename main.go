@@ -77,10 +77,7 @@ func setupApp(e *echo.Echo) {
 	hub := distork.NewHub()
 	go hub.Run()
 	websokcetGroup := eGroup.Group("/ws")
-	middle.JWTMiddleWares(websokcetGroup)
+	middle.WSJWTMiddleWares(websokcetGroup)
 	router.DistorkRoutes(websokcetGroup, hub)
 
-	// roomGroup := eGroup.Group("/room")
-	// middle.JWTMiddleWares(roomGroup)
-	// router.RoomRoutes(roomGroup)
 }

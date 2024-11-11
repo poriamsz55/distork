@@ -91,8 +91,9 @@ func SignUp(c echo.Context) error {
 		}
 
 		return c.JSON(http.StatusCreated, map[string]interface{}{
-			"message": "User created successfully",
-			"token":   token,
+			"message":  "User created successfully",
+			"token":    token,
+			"userData": newUser,
 		})
 	}
 
@@ -110,9 +111,11 @@ func SignUp(c echo.Context) error {
 		return err
 	}
 
+	newUser.Password = ""
 	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"message": "User created successfully",
-		"token":   token,
+		"message":   "User created successfully",
+		"token":     token,
+		"userDarta": newUser,
 	})
 }
 
@@ -143,10 +146,13 @@ func SignIn(c echo.Context) error {
 		})
 	}
 
+	// Security
+	usr.Password = ""
 	// Send the token in response (no cookie needed)
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "Login successful",
-		"token":   token,
+		"message":  "Login successful",
+		"token":    token,
+		"userData": usr,
 	})
 }
 

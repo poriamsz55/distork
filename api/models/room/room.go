@@ -59,7 +59,7 @@ func GetRoomByRoomId(roomId string) (*Room, error) {
 	return &rm, nil
 }
 
-func GetRoomByName(name string) (*Room, error) {
+func GetRoomByNameDB(name string) (*Room, error) {
 
 	collection := database.Collection(config.GetConfigDB().RoomColl)
 	// check if exists
