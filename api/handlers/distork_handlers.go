@@ -69,11 +69,21 @@ func readPump(client *room.Client, hub *distork.Hub) {
 	for {
 		_, msgRcv, err := client.Conn.ReadMessage()
 		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
 			break
 		}
 
 		var msg message.Message
 		if err := json.Unmarshal(msgRcv, &msg); err != nil {
+			log.Printf("error unmarshaling message: %v", err)
+			errorMsg := message.Message{
+				Type:    "error",
+				Content: map[string]interface{}{"error": "Invalid message format"},
+			}
+			errorBytes, _ := json.Marshal(errorMsg)
+			client.Send <- errorBytes
 			continue
 		}
 
@@ -179,13 +189,25 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				client.Room.Broadcast <- msgRcv
 			}
 		case "signal":
-			// Forward WebRTC signaling messages to the target user
+			log.Printf("Signaling message from %s to %s of type %s",
+				msg.From, msg.Target, msg.Signal)
 			client.Room.Mutex.Lock()
+			targetFound := false
 			for cl := range client.Room.Clients {
 				if cl.Username == msg.Target {
 					cl.Send <- msgRcv
+					targetFound = true
 					break
 				}
+			}
+			if !targetFound {
+				log.Printf("Target user %s not found in room", msg.Target)
+				errorMsg := message.Message{
+					Type:    "error",
+					Content: map[string]interface{}{"error": "Target user not found"},
+				}
+				errorBytes, _ := json.Marshal(errorMsg)
+				client.Send <- errorBytes
 			}
 			client.Room.Mutex.Unlock()
 		}

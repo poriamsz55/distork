@@ -46,7 +46,6 @@ func (h *Hub) Run() {
 
 		case client := <-h.Unregister:
 			h.Mutex.Lock()
-
 			if client.Room != nil {
 				if _, ok := client.Room.Clients[client]; ok {
 					delete(client.Room.Clients, client)
@@ -59,7 +58,11 @@ func (h *Hub) Run() {
 					}
 					announcementBytes, _ := json.Marshal(announcement)
 					client.Room.Broadcast <- announcementBytes
-					//TODO: delete(h.Rooms, client.Username)
+				}
+
+				// Add this check to clean up empty rooms
+				if len(client.Room.Clients) == 0 {
+					delete(h.Rooms, client.Room.RoomId)
 				}
 			}
 			h.Mutex.Unlock()
