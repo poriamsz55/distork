@@ -37,7 +37,6 @@ func (h *Hub) Run() {
 			roomsAndUsers := message.Message{
 				Type:    "room_list",
 				Content: roomsList,
-				Target:  registration.Username,
 			}
 
 			// rooms and users
@@ -53,15 +52,14 @@ func (h *Hub) Run() {
 					delete(client.Room.Clients, client)
 					close(client.Send)
 
-					usrByte, _ := json.Marshal(client)
 					// Notify others about user leaving
 					announcement := message.Message{
-						Type:    "user_left",
-						Content: usrByte,
-						RoomId:  client.Room.RoomId,
+						Type: "user_left",
+						From: client.Username,
 					}
 					announcementBytes, _ := json.Marshal(announcement)
 					client.Room.Broadcast <- announcementBytes
+					//TODO: delete(h.Rooms, client.Username)
 				}
 			}
 			h.Mutex.Unlock()

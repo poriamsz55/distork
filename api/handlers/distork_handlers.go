@@ -86,7 +86,6 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				errorMsg := message.Message{
 					Type:    "error",
 					Content: map[string]interface{}{"error": "room is fucked up"},
-					Target:  client.Username,
 				}
 
 				errMsgByte, _ := json.Marshal(errorMsg)
@@ -99,7 +98,6 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				errorMsg := message.Message{
 					Type:    "error",
 					Content: map[string]interface{}{"error": "room exists"},
-					Target:  client.Username,
 				}
 
 				errMsgByte, _ := json.Marshal(errorMsg)
@@ -114,7 +112,6 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				errorMsg := message.Message{
 					Type:    "error",
 					Content: map[string]interface{}{"error": "room is fucked up in DB"},
-					Target:  client.Username,
 				}
 
 				errMsgByte, _ := json.Marshal(errorMsg)
@@ -123,24 +120,24 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				continue
 			}
 
+			go rm.Run()
 			hub.Rooms[rm.RoomId] = rm
 			// Notify others in the room about the new user
 			announcement := message.Message{
-				Type:   "room_created",
-				RoomId: rm.RoomId,
+				Type:    "room_created",
+				Content: rm,
 			}
 			announcementBytes, _ := json.Marshal(announcement)
 			client.Send <- announcementBytes
 			hub.Mutex.Unlock()
 
-		case "user_joined":
+		case "join_room":
 			hub.Mutex.Lock()
 			rm, exists := hub.Rooms[msg.RoomId]
 			if !exists {
 				errorMsg := message.Message{
 					Type:    "error",
 					Content: map[string]interface{}{"error": "room is not exists"},
-					Target:  client.Username,
 				}
 
 				errMsgByte, _ := json.Marshal(errorMsg)
@@ -170,8 +167,7 @@ func readPump(client *room.Client, hub *distork.Hub) {
 			}
 			userListMsg := message.Message{
 				Type:    "user_list",
-				Content: client.Room,
-				Target:  client.Username,
+				Content: userList,
 			}
 			userListBytes, _ := json.Marshal(userListMsg)
 			client.Send <- userListBytes
@@ -183,18 +179,15 @@ func readPump(client *room.Client, hub *distork.Hub) {
 				client.Room.Broadcast <- msgRcv
 			}
 		case "signal":
-			if client.Room != nil {
-				client.Room.Broadcast <- msgRcv
-				// Forward WebRTC signaling messages to the target user
-				client.Room.Mutex.Lock()
-				for client := range client.Room.Clients {
-					if client.Username == msg.Target {
-						client.Send <- msgRcv
-						break
-					}
+			// Forward WebRTC signaling messages to the target user
+			client.Room.Mutex.Lock()
+			for cl := range client.Room.Clients {
+				if cl.Username == msg.Target {
+					cl.Send <- msgRcv
+					break
 				}
-				client.Room.Mutex.Unlock()
 			}
+			client.Room.Mutex.Unlock()
 		}
 	}
 }

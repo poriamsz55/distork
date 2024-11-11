@@ -5,8 +5,8 @@ import "github.com/gorilla/websocket"
 type Client struct {
 	Conn     *websocket.Conn `json:"-" bson:"-"`
 	Send     chan []byte     `json:"-" bson:"-"`
-	Room     *Room           `json:"room,omitempty" bson:"-"`
-	Username string          `json:"username,omitempty" bson:"-"`
+	Room     *Room           `json:"room" bson:"-"`
+	Username string          `json:"username" bson:"-"`
 }
 
 func NewClient(username string) *Client {

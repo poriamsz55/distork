@@ -13,7 +13,7 @@ import (
 type Room struct {
 	RoomId    string           `json:"room_id" bson:"room_id"`
 	Name      string           `json:"name,omitempty" bson:"name"`
-	Clients   map[*Client]bool `json:"clients,omitempty" bson:"-"`
+	Clients   map[*Client]bool `json:"-" bson:"-"`
 	Broadcast chan []byte      `json:"-" bson:"-"`
 	Mutex     sync.Mutex       `json:"-" bson:"-"`
 }

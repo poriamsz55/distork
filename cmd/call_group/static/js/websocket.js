@@ -21,6 +21,7 @@ function connectWebSocket() {
                 break;
             case 'user_joined':
                 displaySystemMessage(`${message.username} joined the room`);
+                console.log("user joined =>")
                 console.log(username)
                 console.log(message.username)
                 if (message.username !== username) {
