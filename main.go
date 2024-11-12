@@ -20,6 +20,7 @@ func main() {
 	}
 
 	_, err := database.Connect()
+	defer database.Disconnect()
 	if err != nil {
 		log.Fatalf("Error when opening file: %s", err)
 		return
@@ -39,11 +40,11 @@ func main() {
 
 	setupApp(e)
 
-	// e.Logger.Fatal(e.StartTLS(":8080",
-	// 	"localhost+2.pem",
-	// 	"localhost+2-key.pem"))
+	e.Logger.Fatal(e.StartTLS(":8080",
+		"192.168.1.14.crt",
+		"192.168.1.14.key"))
 
-	e.Logger.Fatal(e.Start(":8080"))
+	// e.Logger.Fatal(e.Start(":8080"))
 }
 
 func setupApp(e *echo.Echo) {
