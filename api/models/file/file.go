@@ -4,11 +4,10 @@ import "time"
 
 // FileInfo struct to hold file name and modification time
 type File struct {
-	ID       string    `json:"id,omitempty"`
-	Filename string    `json:"filename"`
-	Size     int64     `json:"size"`
-	UserID   string    `json:"user_id"`
-	ModTime  time.Time `json:"modTime"`
-	Path     string    `json:"path" bson:"path"`
-	IsDir    bool      `json:"isDir" bson:"isDir"`
+	Filename  string    `json:"filename" bson:"filename"`
+	Size      int64     `json:"size" bson:"size"`
+	UUsername string    `json:"u_username" bson:"u_username"`
+	ModTime   time.Time `json:"mod_time" bson:"mod_time"`
+	Path      string    `json:"path" bson:"path"`
+	IsDir     bool      `json:"is_dir" bson:"is_dir"`
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	middle "github.com/poriamsz55/distork/api/middlewares"
+	"github.com/poriamsz55/distork/api/models/distork"
 	"github.com/poriamsz55/distork/api/models/user"
 	router "github.com/poriamsz55/distork/api/routers"
 	config "github.com/poriamsz55/distork/configs"
@@ -19,6 +20,7 @@ func main() {
 	}
 
 	_, err := database.Connect()
+	defer database.Disconnect()
 	if err != nil {
 		log.Fatalf("Error when opening file: %s", err)
 		return
@@ -39,8 +41,10 @@ func main() {
 	setupApp(e)
 
 	e.Logger.Fatal(e.StartTLS(":8080",
-		"localhost+2.pem",
-		"localhost+2-key.pem"))
+		"192.168.1.14.crt",
+		"192.168.1.14.key"))
+
+	// e.Logger.Fatal(e.Start(":8080"))
 }
 
 func setupApp(e *echo.Echo) {
@@ -67,17 +71,14 @@ func setupApp(e *echo.Echo) {
 
 	// User Routes
 	userGroup := eGroup.Group("/user")
-	// middle.JWTMiddleWares(userGroup)
 	router.UserRoutes(userGroup)
 
 	// Room
 	//create new manager for websocket traffic
+	hub := distork.NewHub()
+	go hub.Run()
 	websokcetGroup := eGroup.Group("/ws")
-	middle.JWTMiddleWares(websokcetGroup)
-	router.WSRoutes(websokcetGroup)
+	middle.WSJWTMiddleWares(websokcetGroup)
+	router.DistorkRoutes(websokcetGroup, hub)
 
-	// room.AllRooms.Init()
-
-	// http.HandleFunc("/create-room", room.CreateRoomRequestHandler)
-	// http.HandleFunc("/join-room", room.JoinRoomRequestHandler)
 }

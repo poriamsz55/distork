@@ -2,6 +2,7 @@ package config
 
 type ConfigDB struct {
 	DatabaseName string
+	DistorkColl  string
 	UserColl     string
 	RoomColl     string
 }
@@ -18,7 +19,8 @@ func GetConfigDB() *ConfigDB {
 	}
 
 	configDB = &ConfigDB{
-		DatabaseName: "drive",
+		DatabaseName: "distork",
+		DistorkColl:  "distork",
 		UserColl:     "users",
 		RoomColl:     "rooms",
 	}

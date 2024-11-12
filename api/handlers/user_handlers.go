@@ -17,12 +17,7 @@ import (
 
 func SignUp(c echo.Context) error {
 	username := c.FormValue("username")
-	password, err := utils.HashPassword(c.FormValue("password"))
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "Error hashing password",
-		})
-	}
+	password := c.FormValue("password")
 
 	email := c.FormValue("email")
 	if email == "admin@mail.com" {
@@ -51,12 +46,18 @@ func SignUp(c echo.Context) error {
 
 	// check if exists
 	var user user.User
-	gEmail := fmt.Sprintf("%s@mail.com", c.RealIP())
-	err = collection.FindOne(context.TODO(), bson.M{"email": gEmail}).Decode(&user)
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"username": username},
+			{"email": email},
+		},
+	}
+	err = collection.FindOne(context.Background(), filter).Decode(&user)
 	if err == nil {
 		// user has guest
 		// update the guest
-		filter := bson.D{{Key: "email", Value: fmt.Sprintf("%s@mail.com", c.RealIP())}}
+		filter := bson.D{{Key: "username", Value: c.RealIP()}}
 		// Creates instructions to add the "avg_rating" field to documents
 		update := bson.D{
 			{Key: "$set", Value: bson.D{
@@ -69,7 +70,7 @@ func SignUp(c echo.Context) error {
 		}
 
 		// Updates the first document that has the specified "_id" value
-		_, err := collection.UpdateOne(context.TODO(), filter, update)
+		_, err := collection.UpdateOne(context.Background(), filter, update)
 		if err != nil {
 			// Add user
 			err = newUser.AddUserToDB()
@@ -81,8 +82,8 @@ func SignUp(c echo.Context) error {
 		}
 
 		// rename upload folder ip@mail.com to user.email...
-		err = os.Rename(filepath.Join(config.GetConfigDrive().UploadDir, fmt.Sprintf("%s@mail.com", c.RealIP())),
-			filepath.Join(config.GetConfigDrive().UploadDir, newUser.Email))
+		err = os.Rename(filepath.Join(config.GetConfigDrive().UploadDir, c.RealIP()),
+			filepath.Join(config.GetConfigDrive().UploadDir, newUser.Username))
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"message": "Couldn't rename directory",
@@ -90,8 +91,9 @@ func SignUp(c echo.Context) error {
 		}
 
 		return c.JSON(http.StatusCreated, map[string]interface{}{
-			"message": "User created successfully",
-			"token":   token,
+			"message":  "User created successfully",
+			"token":    token,
+			"userData": newUser,
 		})
 	}
 
@@ -104,14 +106,16 @@ func SignUp(c echo.Context) error {
 	}
 
 	// Create user-specific directory if not exists
-	userDir := filepath.Join(config.GetConfigDrive().UploadDir, newUser.Email)
+	userDir := filepath.Join(config.GetConfigDrive().UploadDir, newUser.Username)
 	if err := os.MkdirAll(userDir, os.ModePerm); err != nil {
 		return err
 	}
 
+	newUser.Password = ""
 	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"message": "User created successfully",
-		"token":   token,
+		"message":   "User created successfully",
+		"token":     token,
+		"userDarta": newUser,
 	})
 }
 
@@ -121,7 +125,7 @@ func SignIn(c echo.Context) error {
 
 	collection := database.Collection(config.GetConfigDB().UserColl)
 	var usr user.User
-	err := collection.FindOne(context.TODO(), bson.M{"email": email}).Decode(&usr)
+	err := collection.FindOne(context.Background(), bson.M{"email": email}).Decode(&usr)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"message": "Invalid username or password",
@@ -142,10 +146,13 @@ func SignIn(c echo.Context) error {
 		})
 	}
 
+	// Security
+	usr.Password = ""
 	// Send the token in response (no cookie needed)
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "Login successful",
-		"token":   token,
+		"message":  "Login successful",
+		"token":    token,
+		"userData": usr,
 	})
 }
 
@@ -154,43 +161,6 @@ func GetUserProfile(c echo.Context) error {
 	usr := c.Get("user").(*user.User)
 
 	return c.JSON(http.StatusOK, usr)
-}
-
-// Access protected routes and extract user info from JWT
-func UpdateProfile(c echo.Context) error {
-	usr := c.Get("user").(*user.User)
-
-	// Bind and validate the incoming data
-	updateData := new(user.UpdateProfileRequest)
-	if err := c.Bind(updateData); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
-	}
-
-	// Validate the input data
-	if err := c.Validate(updateData); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	// Prepare the fields to be updated
-	updateFields := bson.M{}
-	if updateData.Username != "" {
-		updateFields["username"] = updateData.Username
-	}
-	if updateData.Password != "" {
-		updateFields["password"] = updateData.Password
-	}
-	if string(updateData.Avatar) != "" {
-		updateFields["avatar"] = updateData.Avatar
-	}
-
-	// Call the repository to update the user in MongoDB
-	if err := user.UpdateUser(usr.Email, updateFields); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Could not update profile")
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Profile updated successfully",
-	})
 }
 
 func NewGuest(c echo.Context) error {
@@ -222,10 +192,10 @@ func NewGuest(c echo.Context) error {
 	}
 
 	// Create upload directory if it doesn't exist
-	_, err = os.Stat(filepath.Join(config.GetConfigDrive().UploadDir, fmt.Sprintf("%s@mail.com", c.RealIP())))
+	_, err = os.Stat(filepath.Join(config.GetConfigDrive().UploadDir, c.RealIP()))
 
 	if os.IsNotExist(err) {
-		if os.MkdirAll(filepath.Join(config.GetConfigDrive().UploadDir, fmt.Sprintf("%s@mail.com", c.RealIP())), os.ModePerm) != nil {
+		if os.MkdirAll(filepath.Join(config.GetConfigDrive().UploadDir, c.RealIP()), os.ModePerm) != nil {
 			return c.JSON(http.StatusOK, map[string]interface{}{
 				"message": "Coludn't create directory",
 			})
