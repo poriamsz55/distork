@@ -15,9 +15,9 @@ import (
 
 type User struct {
 	Username  string `json:"username" bson:"username" validate:"required,min=3,max=30"`
-	Email     string `json:"email,omitempty" bson:"email" validate:"required,email"`
+	Email     string `json:"email" bson:"email" validate:"required,email"`
 	Password  string `json:"password,omitempty" bson:"password" validate:"required,min=8"`
-	Role      string `json:"role,omitempty" bson:"role"`
+	Role      string `json:"role" bson:"role"`
 	DriveSize int64  `json:"drive_size,omitempty" bson:"drive_size"`
 	DriveUsed int64  `json:"drive_used,omitempty" bson:"drive_used"`
 }

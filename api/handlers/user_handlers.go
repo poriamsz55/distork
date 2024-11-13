@@ -113,9 +113,9 @@ func SignUp(c echo.Context) error {
 
 	newUser.Password = ""
 	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"message":   "User created successfully",
-		"token":     token,
-		"userDarta": newUser,
+		"message":  "User created successfully",
+		"token":    token,
+		"userData": newUser,
 	})
 }
 
@@ -154,6 +154,11 @@ func SignIn(c echo.Context) error {
 		"token":    token,
 		"userData": usr,
 	})
+}
+
+func CheckToken(c echo.Context) error {
+
+	return c.JSON(http.StatusOK, "Token is valid")
 }
 
 // Access protected routes and extract user info from JWT

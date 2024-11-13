@@ -7,6 +7,10 @@ import (
 )
 
 func UserRoutes(e *echo.Group) {
+
+	// Check user token
+	e.GET("/check", handlers.CheckToken, middle.CheckJWTMiddleware)
+
 	// Protect this route, accessible only with a valid token
 	e.GET("/profile", handlers.GetUserProfile, middle.OptionalJWTMiddleware)
 

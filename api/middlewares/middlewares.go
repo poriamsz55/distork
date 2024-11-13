@@ -18,11 +18,14 @@ func MiddleWares(e *echo.Group) {
 
 	// Sample Go code using the Echo framework to handle CORS preflight requests
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*", "https://192.168.1.14:3000"}, // Adjust this to match your client's origin
+		AllowOrigins: []string{"http://localhost:3000", "https://localhost:3000",
+			"http://127.0.0.1:3000", "https://127.0.0.1:3000",
+			"http://drive.madarasoli.info", "https://drive.madarasoli.info"}, // Adjust this to match your client's origin
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST,
 			echo.DELETE, echo.OPTIONS},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType,
 			echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowCredentials: true, // Enable credentials support
 	}))
 
 	// Setup Logger

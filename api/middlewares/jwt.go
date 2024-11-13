@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt"
@@ -90,6 +91,32 @@ func WSOptionalJWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		c.Set("user", usr)
+		// If no token or invalid token, the request proceeds as a guest
+		return next(c)
+	}
+}
+
+func CheckJWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Verify JWT
+		authHeader := c.Request().Header.Get("Authorization")
+
+		var err error
+		if authHeader != "" {
+			// Try to verify JWT
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			err = verifyToken(tokenString)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			}
+			_, err = user.GetUserByToken(tokenString)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			}
+		} else {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+		}
+
 		// If no token or invalid token, the request proceeds as a guest
 		return next(c)
 	}
